@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.SemanticKernel;
@@ -25,7 +25,7 @@ string project = "TestingProject";
 string pat = "DXki1K98s5llZhJ7FMPUpqzGtHf6oCycKoze9Qz5jkK1kytpWdHEJQQJ99BDACAAAAAAAAAAAAASAZDO4WxZ";
 string requestUri = $"{orgUrl}/{project}/_apis/wit/wiql?api-version=7.1";
 
-string wiqlQuery = "SELECT [System.Id], [System.Title], [System.State] FROM WorkItems";
+string wiqlQuery = "{ \"query\": \"SELECT [System.WorkItemType] FROM WorkItems\" }";
 using (HttpClient client = new HttpClient())
 {
     client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic",
