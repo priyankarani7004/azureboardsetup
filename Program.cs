@@ -1,74 +1,55 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿// Import packages
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
-using AutoGen;
-using AutoGen.Core;
-using AutoGen.OpenAI;
-using OpenAI;
-using System.ClientModel;
-using AutoGen.OpenAI.Extension;
-using Azure.AI.OpenAI;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Threading.Tasks;
-using Semantickernal;
-using System.Text.Json;
 
 var modelId = "gpt-4";
 var endpoint = "https://soumenopenai.openai.azure.com";
 var apiKey = "9834a230b1234782838e45cd6aad4d9f";
 
-// azure url
-string orgUrl = "https://dev.azure.com/rohitdecruzgurgaon/TestingProject/_apis/wit/workitems?ids=1&api-version=7.1";
-string project = "TestingProject";
-string pat = "DXki1K98s5llZhJ7FMPUpqzGtHf6oCycKoze9Qz5jkK1kytpWdHEJQQJ99BDACAAAAAAAAAAAAASAZDO4WxZ";
-string requestUri = $"{orgUrl}/{project}/_apis/wit/wiql?api-version=7.1";
-
-var service = new AzureDevOpsService();
-var personalAccessToken = "DXki1K98s5llZhJ7FMPUpqzGtHf6oCycKoze9Qz5jkK1kytpWdHEJQQJ99BDACAAAAAAAAAAAAASAZDO4WxZ";
-
-var titles = await service.FetchAllWorkItemsAsync(personalAccessToken);
-
-var openAIClient = new OpenAIClient(apiKey);
-var model = "gpt-4";  // Change this depending on your model
-// Create a semantic kernel
-var builder = Kernel.CreateBuilder();
-builder.AddAzureOpenAIChatCompletion(modelId, endpoint, apiKey);
-var kernel = builder.Build();
+// Initialize Semantic Kernel
+var builder = Kernel.CreateBuilder().AddAzureOpenAIChatCompletion(modelId, endpoint, apiKey);
+Kernel kernel = builder.Build();
 var chatService = kernel.GetRequiredService<IChatCompletionService>();
-var history = new ChatHistory();
 
-Console.WriteLine("Work Item Titles:");
-foreach (var title in titles)
-{
-    Console.WriteLine(title);
+var comparisonPlugin = new ProductComparisonPlugin(chatService);
+string comparisonResult = await comparisonPlugin.CompareProductsAsync("https://www.example.com/product1", "https://www.example.com/product2");
 
-    //Console.WriteLine("Enter a project description (e.g., 'Develop a mobile app with user authentication, profile, and chat feature.'):");
-    string projectDescription =title;
+Console.WriteLine("\n🛍️ Product Comparison:\n" + comparisonResult);
 
-    // Add system message for timeline generation
-    history.AddSystemMessage("You are a project management assistant. Your task is to generate a weekly timeline for a given project, breaking it down into tasks including design, development, testing, and deployment phases.");
+//var history = new ChatHistory();
 
-    // Add the project description to the chat history
-    history.AddUserMessage($"Project description: {projectDescription}");
+//// URLs to compare
+//string url1 = "https://www.xerve.in/nokia";
+//string url2 = "https://www.xerve.in/nokia";
 
-    // Call the OpenAI model to generate the timeline
-    var result = await chatService.GetChatMessageContentAsync(
-        history,
-        executionSettings: new OpenAIPromptExecutionSettings
-        {
-            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
-        },
-        kernel: kernel
-    );
+//string html1 = await GetHtmlAsync(url1);
+//string html2 = await GetHtmlAsync(url2);
 
-    // Print the generated project timeline
-    Console.WriteLine("\n🧠 Estimated Project Timeline:\n");
-    Console.WriteLine(result.Content);
-}
-// Initialize AutoGen OpenAI client
+//// Add instruction to the chat history
+//history.AddSystemMessage("You are a product comparison assistant. Compare two product pages in detail including specs, price, brand, and reviews.");
 
-// Start the conversation by asking for the project description
+//// Add both HTMLs
+//history.AddUserMessage($"Product page from URL 1:\n{html1}");
+//history.AddUserMessage($"Product page from URL 2:\n{html2}");
+
+//var result = await chatService.GetChatMessageContentAsync(
+//    history,
+//    executionSettings: new OpenAIPromptExecutionSettings
+//    {
+//        FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+//    },
+//    kernel: kernel
+//);
+
+//Console.WriteLine("\n🧠 Assistant's Comparison:\n");
+//Console.WriteLine(result.Content);
+
+
+//static async Task<string> GetHtmlAsync(string url)
+//{
+//    using HttpClient client = new();
+//    return await client.GetStringAsync(url);
+//}
