@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Semantickernal;
 
 var modelId = "gpt-4";
 var endpoint = "https://soumenopenai.openai.azure.com";
@@ -13,43 +14,17 @@ var apiKey = "9834a230b1234782838e45cd6aad4d9f";
 var builder = Kernel.CreateBuilder().AddAzureOpenAIChatCompletion(modelId, endpoint, apiKey);
 Kernel kernel = builder.Build();
 var chatService = kernel.GetRequiredService<IChatCompletionService>();
-
+// Create plugin and register it
 var comparisonPlugin = new ProductComparisonPlugin(chatService);
-string comparisonResult = await comparisonPlugin.CompareProductsAsync("https://www.example.com/product1", "https://www.example.com/product2");
+kernel.Plugins.AddFromObject(comparisonPlugin, "ProductComparison");
 
-Console.WriteLine("\n🛍️ Product Comparison:\n" + comparisonResult);
+var planner = new SemanticPlanner(comparisonPlugin);
 
-//var history = new ChatHistory();
+string goal = "Compare www.google.com/iPhone 14 and www.google.com/Samsung S23";
 
-//// URLs to compare
-//string url1 = "https://www.xerve.in/nokia";
-//string url2 = "https://www.xerve.in/nokia";
+// Execute plan
+string result = await planner.CreatePlanAsync(goal);
 
-//string html1 = await GetHtmlAsync(url1);
-//string html2 = await GetHtmlAsync(url2);
-
-//// Add instruction to the chat history
-//history.AddSystemMessage("You are a product comparison assistant. Compare two product pages in detail including specs, price, brand, and reviews.");
-
-//// Add both HTMLs
-//history.AddUserMessage($"Product page from URL 1:\n{html1}");
-//history.AddUserMessage($"Product page from URL 2:\n{html2}");
-
-//var result = await chatService.GetChatMessageContentAsync(
-//    history,
-//    executionSettings: new OpenAIPromptExecutionSettings
-//    {
-//        FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
-//    },
-//    kernel: kernel
-//);
-
-//Console.WriteLine("\n🧠 Assistant's Comparison:\n");
-//Console.WriteLine(result.Content);
-
-
-//static async Task<string> GetHtmlAsync(string url)
-//{
-//    using HttpClient client = new();
-//    return await client.GetStringAsync(url);
-//}
+// Output result
+Console.WriteLine("\n🧠 Goal: " + goal);
+Console.WriteLine("📊 Result:\n" + result);
