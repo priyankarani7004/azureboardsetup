@@ -20,10 +20,12 @@ kernel.Plugins.AddFromObject(comparisonPlugin, "ProductComparison");
 
 var planner = new SemanticPlanner(comparisonPlugin);
 
-string goal = "Compare www.google.com/iPhone 14 and www.google.com/Samsung S23";
+string url1 = "https://www.gsmarena.com/samsung-phones-9.php";
+string url2 = "https://www.gsmarena.com/asus-phones-46.php";
 
+string goal = "Compare";
 // Execute plan
-string result = await planner.CreatePlanAsync(goal);
+string result = await planner.CreatePlanAsync(goal, url1, url2);
 
 // Output result
 Console.WriteLine("\n🧠 Goal: " + goal);

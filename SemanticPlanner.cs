@@ -13,20 +13,17 @@ namespace Semantickernal
             _productComparisonPlugin = productComparisonPlugin;
         }
 
-        public async Task<string> CreatePlanAsync(string goal)
+        public async Task<string> CreatePlanAsync(string goal,string url1,string url2)
         {
             // Basic goal parsing using regex or keyword matching
-            if (goal.Contains("compare", StringComparison.OrdinalIgnoreCase) && goal.Contains("product", StringComparison.OrdinalIgnoreCase))
+            if (goal=="Compare")
             {
                 // Example: "Compare iPhone 14 and Samsung S23"
-                var match = Regex.Match(goal, @"compare\s+(.*?)\s+and\s+(.*)", RegexOptions.IgnoreCase);
-                if (match.Success && match.Groups.Count >= 3)
-                {
-                    string product1 = match.Groups[1].Value.Trim();
-                    string product2 = match.Groups[2].Value.Trim();
+                
+                    string product1 = url1;
+                    string product2 = url2;
                     return await _productComparisonPlugin.CompareProductsAsync(product1, product2);
-                }
-                return "⚠️ Couldn't extract products for comparison.";
+                
             }
             return null;
             
