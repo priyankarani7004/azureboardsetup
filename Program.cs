@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using Semantickernal;
 
@@ -16,17 +17,50 @@ Kernel kernel = builder.Build();
 var chatService = kernel.GetRequiredService<IChatCompletionService>();
 // Create plugin and register it
 var comparisonPlugin = new ProductComparisonPlugin(chatService);
-kernel.Plugins.AddFromObject(comparisonPlugin, "ProductComparison");
 
-var planner = new SemanticPlanner(comparisonPlugin);
 
-string url1 = "https://www.gsmarena.com/samsung-phones-9.php";
-string url2 = "https://www.gsmarena.com/asus-phones-46.php";
+var comparerKernel = kernel.Clone();
+var helperKernel = kernel.Clone();
 
-string goal = "Compare";
-// Execute plan
-string result = await planner.CreatePlanAsync(goal, url1, url2);
+// Add plugin functions
+var comparerFunction = comparerKernel.CreateFunctionFromMethod(CustomProductPlugin.CompareProducts);
+comparerKernel.ImportPluginFromFunctions("product", new[] { comparerFunction });
 
-// Output result
-Console.WriteLine("\n🧠 Goal: " + goal);
-Console.WriteLine("📊 Result:\n" + result);
+var helperFunction = helperKernel.CreateFunctionFromMethod(CustomProductPlugin.SummarizeComparison);
+helperKernel.ImportPluginFromFunctions("helper", new[] { helperFunction });
+
+
+var comparerAgent = new ChatCompletionAgent
+{
+    Name = "ProductComparer",
+    Instructions = "You are a tech product comparison expert. Use plugin functions to compare and list features.",
+    Kernel = comparerKernel,
+    Arguments = new KernelArguments(new OpenAIPromptExecutionSettings
+    {
+        FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()  // let model choose best function
+    })
+};
+
+var helperAgent = new ChatCompletionAgent
+{
+    Name = "HelperAgent",
+    Instructions = "Summarize the result using the 'SummarizeComparison' function.",
+    Kernel = kernel,
+    Arguments = new KernelArguments
+            {
+                { "input", "Comparison results" }
+            }
+};
+
+// Create group chat
+var chat = new AgentGroupChat(comparerAgent, helperAgent);
+
+// Start conversation
+chat.AddChatMessage(new ChatMessageContent(AuthorRole.User, "Compare iPhone 15 and Galaxy S23."));
+
+Console.WriteLine("🤖 Group Chat with Plugin Functions:\n");
+
+await foreach (var message in chat.InvokeAsync())
+{
+    Console.WriteLine($"{message.Content}");
+}
