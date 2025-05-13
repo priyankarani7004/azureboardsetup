@@ -1,0 +1,98 @@
+// Import packages
+using Microsoft.Extensions.DependencyInjection;
+using System.Net;
+using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using Microsoft.SemanticKernel.Agents;
+using Microsoft.SemanticKernel.Connectors.OpenAI;
+using Semantickernal;
+
+var modelId = "azure.gpt-4o";
+var endpoint = "https://genai-sharedservice-americas.pwc.com";
+var apiKey = "sk-H29qrOFGQAU7EDbdEVnRjw";
+ServicePointManager.ServerCertificateValidationCallback = (sender, cert, chain, sslPolicyErrors) => true;
+HttpClientHandler handler = new HttpClientHandler
+{
+    ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+};
+HttpClient client = new HttpClient(handler);
+// Initialize Semantic Kernel
+var builder = Kernel.CreateBuilder().AddAzureOpenAIChatCompletion(modelId, endpoint, apiKey,httpClient:client);
+Kernel kernel = builder.Build();
+var chatService = kernel.GetRequiredService<IChatCompletionService>();
+
+
+var comparerKernel = kernel.Clone();
+var ProductDetailsKernal = kernel.Clone();
+var semanticKernel = kernel.Clone();
+
+
+// Add plugin functions
+var comparerFunction = comparerKernel.CreateFunctionFromMethod(ProductComparision.CompareProducts);
+comparerKernel.ImportPluginFromFunctions("CompareProduct", new[] { comparerFunction });
+
+
+// var helperFunction = ProductDetailsKernal.CreateFunctionFromMethod(ProductDetail.ProductDetails);
+// ProductDetailsKernal.ImportPluginFromFunctions("ProductDetails", new[] { helperFunction });
+
+var Semanticanalysis = semanticKernel.CreateFunctionFromMethod(Semantic.SemanticAnalysis);
+semanticKernel.ImportPluginFromFunctions("Semanticanalysis", new[] { Semanticanalysis });
+
+
+var comparerAgent = new ChatCompletionAgent
+{
+    Name = "ProductComparer",
+Instructions = "You are ONLY to respond when the user is clearly comparing two or more products using words like 'compare', 'versus', 'vs', or 'difference between'. Do NOT respond if only one product is mentioned.",
+        Kernel = comparerKernel,
+    Arguments = new KernelArguments(new OpenAIPromptExecutionSettings
+    {
+        FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()  // let model choose best function
+    })
+};
+var sentimentAgent = new ChatCompletionAgent
+{
+    Name = "SentimentAgent",
+Instructions = "Only respond when the user input includes opinions or reviews. Use this to determine if the sentiment is positive, negative, or neutral.",
+    Kernel = semanticKernel,
+   Arguments = new KernelArguments(new OpenAIPromptExecutionSettings
+    {
+        FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()  // let model choose best function
+    })
+};
+
+
+// var ProductDetailsAgent = new ChatCompletionAgent
+// {
+//     Name = "Product Details",
+// Instructions = "You are responsible for providing technical specifications when a user asks for the details of a single product. Trigger only if the input includes phrases like 'specs', 'features', or 'tell me about'.",
+//     Kernel = ProductDetailsKernal,
+//   Arguments = new KernelArguments(new OpenAIPromptExecutionSettings
+//     {
+//         FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()  // let model choose best function
+//     })
+// };
+
+// Create group chat
+
+
+AgentGroupChat chat =
+  new(sentimentAgent, comparerAgent)
+  {
+    // Override default execution settings
+    ExecutionSettings =
+    {
+        TerminationStrategy = { MaximumIterations = 100 }
+    }
+  };
+
+Console.WriteLine("Enter the Input");
+var userinput=Console.ReadLine();
+// Start conversation
+chat.AddChatMessage(new ChatMessageContent(AuthorRole.User, userinput));
+
+
+await foreach (var message in chat.InvokeAsync())
+{
+    Console.WriteLine($"{message.Content}");
+}
